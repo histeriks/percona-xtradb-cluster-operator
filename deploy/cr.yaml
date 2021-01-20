@@ -4,29 +4,13 @@ metadata:
   name: cluster1
   finalizers:
     - delete-pxc-pods-in-order
-#    - delete-proxysql-pvc
-#    - delete-pxc-pvc
-#  annotations:
-#    percona.com/issue-vault-token: "true"
 spec:
   crVersion: 1.6.0
   secretsName: my-cluster-secrets
   vaultSecretName: keyring-secret-vault
   sslSecretName: my-cluster-ssl
   sslInternalSecretName: my-cluster-ssl-internal
-  logCollectorSecretName: my-log-collector-secrets
-#  enableCRValidationWebhook: true
-#  tls:
-#    SANs:
-#      - pxc-1.example.com
-#      - pxc-2.example.com
-#      - pxc-3.example.com
-#    issuerConf:
-#      name: special-selfsigned-issuer
-#      kind: ClusterIssuer
-#      group: cert-manager.io
   allowUnsafeConfigurations: false
-#  pause: false
   updateStrategy: SmartUpdate
   upgradeOptions:
     versionServiceEndpoint: https://check.percona.com
@@ -35,11 +19,10 @@ spec:
   pxc:
     size: 3
     image: percona/percona-xtradb-cluster:8.0.20-11.1
-#    autoRecovery: false
 #    schedulerName: mycustom-scheduler
-#    readinessDelaySec: 15
-#    livenessDelaySec: 600
-#    forceUnsafeBootstrap: false
+    readinessDelaySec: 15
+    livenessDelaySec: 300
+    forceUnsafeBootstrap: true
 #    configuration: |
 #      [mysqld]
 #      wsrep_debug=ON
@@ -48,9 +31,6 @@ spec:
 #      xbstream-opts=--decompress
 #      [xtrabackup]
 #      compress=lz4
-#      for PXC 5.7
-#      [xtrabackup]
-#      compress
 #    imagePullSecrets:
 #      - name: private-registry-credentials
 #    priorityClassName: high-priority
@@ -68,8 +48,8 @@ spec:
 #    imagePullPolicy: Always
     resources:
       requests:
-        memory: 1G
-        cpu: 600m
+        memory: 500M
+        cpu: 300m
 #        ephemeral-storage: 1Gi
 #      limits:
 #        memory: 1G
@@ -98,16 +78,16 @@ spec:
       maxUnavailable: 1
 #      minAvailable: 0
     volumeSpec:
-#      emptyDir: {}
-#      hostPath:
-#        path: /data
-#        type: Directory
+      emptyDir: {}
+      hostPath:
+        path: /mnt/data
+        type: Directory
       persistentVolumeClaim:
-#        storageClassName: standard
-#        accessModes: [ "ReadWriteOnce" ]
+        storageClassName: do-block-storage
+        accessModes: [ "ReadWriteOnce" ]
         resources:
           requests:
-            storage: 6Gi
+            storage: 5Gi
     gracePeriod: 600
   haproxy:
     enabled: true
@@ -147,15 +127,13 @@ spec:
 #      iam.amazonaws.com/role: role-arn
 #    labels:
 #      rack: rack-22
-#    serviceType: ClusterIP
+    serviceType: LoadBalancer
 #    externalTrafficPolicy: Cluster
-#    replicasServiceType: ClusterIP
-#    replicasExternalTrafficPolicy: Cluster
 #    schedulerName: "default"
     resources:
       requests:
-        memory: 1G
-        cpu: 600m
+        memory: 500M
+        cpu: 300m
 #      limits:
 #        memory: 1G
 #        cpu: 700m
@@ -312,28 +290,11 @@ spec:
 #     - 10.0.0.0/8
 #   serviceAnnotations:
 #     service.beta.kubernetes.io/aws-load-balancer-backend-protocol: http
-  logcollector:
-    enabled: true
-    image: percona/percona-xtradb-cluster-operator:1.6.0-logcollector
-#    configuration: |
-#      [OUTPUT]
-#           Name  es
-#           Match *
-#           Host  192.168.2.3
-#           Port  9200
-#           Index my_index
-#           Type  my_type
-#    resources:
-#      requests:
-#        memory: 200M
-#        cpu: 500m
   pmm:
     enabled: false
-    image: percona/pmm-client:2.12.0
+    image: percona/percona-xtradb-cluster-operator:1.6.0-pmm
     serverHost: monitoring-service
     serverUser: pmm
-#    pxcParams: "--disable-tablestats-limit=2000"
-#    proxysqlParams: "--custom-labels=CUSTOM-LABELS"
 #    resources:
 #      requests:
 #        memory: 200M
@@ -343,10 +304,6 @@ spec:
 #    serviceAccountName: percona-xtradb-cluster-operator
 #    imagePullSecrets:
 #      - name: private-registry-credentials
-    pitr:
-      enabled: false
-      storageName: STORAGE-NAME-HERE
-      timeBetweenUploads: 60
     storages:
       s3-us-west:
         type: s3
